@@ -79,7 +79,7 @@ fun VeniceApp(
                     isGenerating = isGeneratingArt,
                     onPresetSelected = { viewModel.setSelectedPreset(it) },
                     onGenerate = { prompt, preset, ratio ->
-                        viewModel.generateArt(prompt, preset, ratio)
+                        viewModel.generateArt(prompt, preset, ratio, context)
                     },
                     onDeleteArt = { viewModel.deleteArt(it) }
                 )

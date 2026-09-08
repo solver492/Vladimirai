@@ -363,32 +363,87 @@ object VeniceRepository {
         delay(700)
 
         val aiMsg = if (imageUri != null && context != null) {
-            val transformationResult = com.ai.venice.util.ProductVisualEnhancer.transformProductImage(
-                context = context,
-                rawImageSource = imageUri,
-                userInstruction = effectiveUserText
-            )
-            ChatMessage(
-                id = UUID.randomUUID().toString(),
-                chatId = chatId,
-                role = "assistant",
-                content = transformationResult.reportText,
-                modelName = model.name,
-                mindName = "Vlad E-Commerce Studio",
-                originalImageUri = imageUri,
-                processedImageUri = transformationResult.outputUri,
-                isProductTransformation = true,
-                transformationDetails = transformationResult.details
-            )
+            // First attempt real AI image generation via Nano Banana (Gemini Image Generation)
+            val nanoResult = if (_settings.value.useNanoBananaService && NanoBananaService.hasValidApiKey(_settings.value.geminiApiKey)) {
+                NanoBananaService.transformProductImage(
+                    context = context,
+                    rawImageSource = imageUri,
+                    userInstruction = effectiveUserText,
+                    customKey = _settings.value.geminiApiKey,
+                    modelName = _settings.value.nanoBananaModel
+                )
+            } else {
+                null
+            }
+
+            if (nanoResult != null && nanoResult.isSuccess) {
+                val successData = nanoResult.getOrNull()!!
+                ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    chatId = chatId,
+                    role = "assistant",
+                    content = successData.reportText,
+                    modelName = "Nano Banana (${_settings.value.nanoBananaModel})",
+                    mindName = "Vlad E-Commerce Studio",
+                    originalImageUri = imageUri,
+                    processedImageUri = successData.outputUri,
+                    isProductTransformation = true,
+                    transformationDetails = successData.details,
+                    isNanoBananaGenerated = true
+                )
+            } else {
+                // Fallback to on-device visual enhancer and explain the Nano Banana status
+                val transformationResult = com.ai.venice.util.ProductVisualEnhancer.transformProductImage(
+                    context = context,
+                    rawImageSource = imageUri,
+                    userInstruction = effectiveUserText
+                )
+                val failureReason = nanoResult?.exceptionOrNull()?.message
+                val customReport = if (failureReason != null) {
+                    "🍌 **Notice Nano Banana (Mode Gratuit)** : $failureReason\n\n*Traitement studio appliqué via le moteur de transition :*\n\n" + transformationResult.reportText
+                } else {
+                    "🍌 **Mode Gratuit Nano Banana** : Pour générer des visuels produits 100% par IA générative directe, ajoutez votre clé Google AI Studio gratuite dans les Paramètres.\n\n" + transformationResult.reportText
+                }
+
+                ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    chatId = chatId,
+                    role = "assistant",
+                    content = customReport,
+                    modelName = model.name,
+                    mindName = "Vlad E-Commerce Studio",
+                    originalImageUri = imageUri,
+                    processedImageUri = transformationResult.outputUri,
+                    isProductTransformation = true,
+                    transformationDetails = transformationResult.details,
+                    isNanoBananaGenerated = false
+                )
+            }
         } else {
-            val aiReplyContent = generateVeniceResponse(effectiveUserText, mind, model)
+            // Try real AI dynamic text generation via Gemini Flash
+            var realAiReply: String? = null
+            if (_settings.value.useNanoBananaService && NanoBananaService.hasValidApiKey(_settings.value.geminiApiKey)) {
+                val chatResult = NanoBananaService.generateChatText(
+                    prompt = effectiveUserText,
+                    systemInstructionText = mind.systemPrompt,
+                    customKey = _settings.value.geminiApiKey,
+                    temperature = _settings.value.temperature,
+                    modelName = _settings.value.textModel
+                )
+                if (chatResult.isSuccess) {
+                    realAiReply = chatResult.getOrNull()
+                }
+            }
+
+            val aiReplyContent = realAiReply ?: generateVeniceResponse(effectiveUserText, mind, model)
             ChatMessage(
                 id = UUID.randomUUID().toString(),
                 chatId = chatId,
                 role = "assistant",
                 content = aiReplyContent,
-                modelName = model.name,
-                mindName = mind.name
+                modelName = if (realAiReply != null) "Gemini Flash (${_settings.value.textModel})" else model.name,
+                mindName = mind.name,
+                isNanoBananaGenerated = (realAiReply != null)
             )
         }
 
@@ -442,6 +497,13 @@ object VeniceRepository {
             return getConciseGreetingResponse(query)
         }
 
+        // Handle day, date, time queries accurately and concisely
+        if (lower.contains("quel jour") || lower.contains("quelle jour") || lower.contains("date") || lower.contains("what day") || lower.contains("today")) {
+            val sdf = java.text.SimpleDateFormat("EEEE d MMMM yyyy", java.util.Locale.FRANCE)
+            val todayStr = sdf.format(java.util.Date()).replaceFirstChar { it.uppercase() }
+            return "Aujourd'hui, nous sommes le **$todayStr**."
+        }
+
         return when (mind.id) {
             "mind_uncensored" -> {
                 when {
@@ -481,13 +543,44 @@ object VeniceRepository {
         }
     }
 
-    fun generateArt(prompt: String, preset: ImageStylePreset, aspectRatio: String): GeneratedArt {
+    suspend fun generateArt(
+        prompt: String,
+        preset: ImageStylePreset,
+        aspectRatio: String,
+        context: android.content.Context? = null
+    ): GeneratedArt {
+        if (context != null && _settings.value.useNanoBananaService && NanoBananaService.hasValidApiKey(_settings.value.geminiApiKey)) {
+            val result = NanoBananaService.generateImage(
+                context = context,
+                prompt = prompt,
+                preset = preset,
+                aspectRatio = aspectRatio,
+                customKey = _settings.value.geminiApiKey,
+                modelName = _settings.value.nanoBananaModel
+            )
+            if (result.isSuccess) {
+                val artData = result.getOrNull()!!
+                val newArt = GeneratedArt(
+                    id = UUID.randomUUID().toString(),
+                    prompt = prompt,
+                    styleName = preset.name,
+                    aspectRatio = aspectRatio,
+                    imageUri = artData.imageUri,
+                    drawableName = preset.drawableName,
+                    isRealNanoBananaGen = true
+                )
+                _generatedArts.value = listOf(newArt) + _generatedArts.value
+                return newArt
+            }
+        }
+
         val newArt = GeneratedArt(
             id = UUID.randomUUID().toString(),
             prompt = prompt,
             styleName = preset.name,
             aspectRatio = aspectRatio,
-            drawableName = preset.drawableName
+            drawableName = preset.drawableName,
+            isRealNanoBananaGen = false
         )
         _generatedArts.value = listOf(newArt) + _generatedArts.value
         return newArt

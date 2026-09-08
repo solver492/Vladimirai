@@ -3,7 +3,11 @@ package com.ai.venice.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.Toast
+import java.io.File
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -114,26 +118,82 @@ fun ImageStudioScreen(
     ) {
         // Studio Header
         item {
-            Column {
-                Text(
-                    text = "VLAD ART STUDIO",
-                    color = VeniceCyan,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp
-                )
-                Text(
-                    text = "Uncensored Generative Media",
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Text(
-                    text = "Create vivid imagery without algorithmic censorship or content filters.",
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "VLAD ART STUDIO",
+                            color = VeniceCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp
+                        )
+                        Text(
+                            text = "Uncensored Generative Media",
+                            color = TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+
+                    Surface(
+                        color = Color(0xFF1E1A0F),
+                        shape = RoundedCornerShape(20.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5A000))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("🍌", fontSize = 12.sp)
+                            Text(
+                                text = "Nano Banana",
+                                color = Color(0xFFFFD54F),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Nano Banana Free Mode status banner
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFF141920),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2A3645))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD54F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Service Nano Banana (Mode Gratuit Actif)",
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Modèle gemini-2.5-flash-image • Génération réelle d'images par IA sans automatisation locale.",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -439,15 +499,37 @@ fun ImageStudioScreen(
                             .clickable { previewArt = art }
                             .padding(8.dp)
                     ) {
-                        SafeStudioImage(
-                            drawableId = drawableId,
-                            contentDescription = art.prompt,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(10.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            SafeStudioImage(
+                                imageUri = art.imageUri,
+                                drawableId = drawableId,
+                                contentDescription = art.prompt,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(10.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            if (art.isRealNanoBananaGen) {
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp),
+                                    color = Color(0xFF1E1A0F),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5A000))
+                                ) {
+                                    Text(
+                                        text = "🍌 AI",
+                                        color = Color(0xFFFFD54F),
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = art.styleName,
@@ -598,12 +680,42 @@ fun ImageStudioScreen(
 
 @Composable
 fun SafeStudioImage(
-    drawableId: Int,
+    imageUri: String? = null,
+    drawableId: Int = 0,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop
 ) {
-    if (drawableId != 0) {
+    val context = LocalContext.current
+    val bitmap = remember(imageUri) {
+        if (imageUri != null) {
+            try {
+                if (imageUri.startsWith("file://")) {
+                    val path = Uri.parse(imageUri).path
+                    if (path != null && File(path).exists()) {
+                        BitmapFactory.decodeFile(path)
+                    } else null
+                } else if (imageUri.startsWith("content://")) {
+                    context.contentResolver.openInputStream(Uri.parse(imageUri))?.use {
+                        BitmapFactory.decodeStream(it)
+                    }
+                } else {
+                    null
+                }
+            } catch (e: Throwable) {
+                null
+            }
+        } else null
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else if (drawableId != 0) {
         Image(
             painter = painterResource(id = drawableId),
             contentDescription = contentDescription,

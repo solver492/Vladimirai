@@ -136,14 +136,18 @@ class VeniceViewModel : ViewModel() {
         }
     }
 
-    fun generateArt(prompt: String, preset: ImageStylePreset, aspectRatio: String) {
+    fun generateArt(
+        prompt: String,
+        preset: ImageStylePreset,
+        aspectRatio: String,
+        context: android.content.Context? = null
+    ) {
         if (prompt.isBlank() || _isGeneratingArt.value) return
 
         viewModelScope.launch {
             _isGeneratingArt.value = true
             try {
-                delay(1200) // Realistic studio generation cycle
-                repository.generateArt(prompt.trim(), preset, aspectRatio)
+                repository.generateArt(prompt.trim(), preset, aspectRatio, context)
             } finally {
                 _isGeneratingArt.value = false
             }

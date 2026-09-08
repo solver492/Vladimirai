@@ -51,7 +51,8 @@ data class ChatMessage(
     val originalImageUri: String? = null,
     val processedImageUri: String? = null,
     val isProductTransformation: Boolean = false,
-    val transformationDetails: ProductTransformationDetails? = null
+    val transformationDetails: ProductTransformationDetails? = null,
+    val isNanoBananaGenerated: Boolean = false
 )
 
 data class ChatSession(
@@ -79,11 +80,17 @@ data class GeneratedArt(
     val styleName: String,
     val aspectRatio: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val drawableName: String? = null
+    val drawableName: String? = null,
+    val imageUri: String? = null,
+    val isRealNanoBananaGen: Boolean = false
 )
 
 data class VeniceSettings(
     val apiKey: String = "",
+    val geminiApiKey: String = "",
+    val nanoBananaModel: String = "gemini-2.5-flash-image",
+    val textModel: String = "gemini-3.5-flash",
+    val useNanoBananaService: Boolean = true,
     val zeroLogging: Boolean = true,
     val uncensoredMode: Boolean = true,
     val defaultModelId: String = "llama-3.3-70b-uncensored",
