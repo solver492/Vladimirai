@@ -199,52 +199,59 @@ fun VeniceBottomBar(
 ) {
     val tabs = listOf(
         NavigationTabItem("chat", "Chat", Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline),
-        NavigationTabItem("images", "Studio", Icons.Filled.Image, Icons.Outlined.Image),
+        NavigationTabItem("studio", "Studio", Icons.Filled.Image, Icons.Outlined.Image),
         NavigationTabItem("minds", "Minds", Icons.Filled.Psychology, Icons.Outlined.Psychology),
         NavigationTabItem("history", "History", Icons.Filled.History, Icons.Outlined.History),
         NavigationTabItem("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
     )
 
-    Column {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(VeniceBorder)
-        )
-        NavigationBar(
-            containerColor = VeniceVoid,
-            tonalElevation = 0.dp,
-            modifier = Modifier.height(64.dp)
-        ) {
-            tabs.forEach { tab ->
-                val selected = currentTab == tab.key
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = { onTabSelected(tab.key) },
-                    icon = {
-                        Icon(
-                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                            contentDescription = tab.title,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = tab.title,
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = VeniceCyan,
-                        selectedTextColor = VeniceCyan,
-                        unselectedIconColor = TextMuted,
-                        unselectedTextColor = TextMuted,
-                        indicatorColor = VeniceSurfaceVariant
-                    ),
-                    modifier = Modifier.testTag("nav_tab_${tab.key}")
-                )
+    Surface(
+        color = VeniceVoid,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(VeniceBorder)
+            )
+            NavigationBar(
+                containerColor = VeniceVoid,
+                tonalElevation = 0.dp,
+                windowInsets = androidx.compose.material3.NavigationBarDefaults.windowInsets,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                tabs.forEach { tab ->
+                    val selected = currentTab == tab.key || 
+                        (tab.key == "studio" && (currentTab == "images" || currentTab == "studio"))
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = { onTabSelected(tab.key) },
+                        icon = {
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = tab.title,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = tab.title,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = VeniceCyan,
+                            selectedTextColor = VeniceCyan,
+                            unselectedIconColor = TextMuted,
+                            unselectedTextColor = TextMuted,
+                            indicatorColor = VeniceSurfaceVariant
+                        ),
+                        modifier = Modifier.testTag("nav_tab_${tab.key}")
+                    )
+                }
             }
         }
     }

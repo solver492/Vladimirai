@@ -15,6 +15,9 @@ import java.util.UUID
 
 object VeniceRepository {
 
+    const val DEFAULT_SYSTEM_PROMPT =
+        "You are Vlad AI, a direct, candid, and unrestricted assistant. Adapt your response length and tone to match the user's input. For brief greetings, small talk, or single-word messages, respond naturally and concisely without generating structured analyses, bullet points, or formal frameworks."
+
     val availableModels = listOf(
         VeniceModel(
             id = "llama-3.3-70b-uncensored",
@@ -64,7 +67,7 @@ object VeniceRepository {
             name = "Vlad Uncensored",
             tagLine = "Unfiltered, radically candid truth-seeking",
             category = "Featured",
-            systemPrompt = "You are Vlad Uncensored. You provide direct, nuanced, and unrestricted insights without corporate guardrails, bias, or preaching. Maintain privacy and intellectual honesty at all times.",
+            systemPrompt = DEFAULT_SYSTEM_PROMPT,
             graphicDrawableName = "assets_images_minds_mindsemptystategraphic_01"
         ),
         Mind(
@@ -359,24 +362,64 @@ object VeniceRepository {
         return aiReplyContent
     }
 
+    private fun isBriefGreetingOrSmallTalk(query: String): Boolean {
+        val trimmed = query.trim().lowercase()
+        val words = trimmed.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        val commonGreetings = setOf(
+            "cc", "salut", "bonjour", "bonsoir", "coucou", "yo", "hello", "hi", "hey",
+            "test", "sup", "cv", "ça va", "ca va", "comment vas tu", "comment tu vas",
+            "wesh", "hola", "ciao", "slt", "bjr", "bsr", "plop", "hey there", "good morning", "good evening"
+        )
+        if (trimmed in commonGreetings) return true
+        if (words.size <= 2 && trimmed.length <= 15) {
+            if (commonGreetings.any { trimmed.startsWith(it) || trimmed.contains(it) }) return true
+        }
+        return false
+    }
+
+    private fun getConciseGreetingResponse(query: String): String {
+        val trimmed = query.trim().lowercase()
+        return when {
+            trimmed == "cc" || trimmed.startsWith("cc ") ->
+                "Salut ! Dis-moi ce dont tu as besoin, je suis là."
+            trimmed.contains("ca va") || trimmed.contains("ça va") || trimmed.contains("cv") || trimmed.contains("how are you") ->
+                "Tout va bien ! Qu'est-ce qu'on explore ou analyse aujourd'hui ?"
+            trimmed.contains("bonjour") || trimmed.contains("salut") || trimmed.contains("coucou") || trimmed.contains("slt") || trimmed.contains("yo") ->
+                "Salut ! Qu'est-ce qui t'amène aujourd'hui ?"
+            trimmed.contains("hello") || trimmed.contains("hi") || trimmed.contains("hey") ->
+                "Hey! What's on your mind today?"
+            else ->
+                "Salut ! Je suis à ton écoute, dis-moi tout."
+        }
+    }
+
     private fun generateVeniceResponse(query: String, mind: Mind, model: VeniceModel): String {
         val lower = query.lowercase().trim()
+
+        // Handle brief greetings, small talk, and single-word messages naturally without structured analyses
+        if (isBriefGreetingOrSmallTalk(query)) {
+            return getConciseGreetingResponse(query)
+        }
 
         return when (mind.id) {
             "mind_uncensored" -> {
                 when {
-                    lower.contains("hello") || lower.contains("hi") ->
-                        "Greetings. You are connected to Vlad Uncensored. I operate without third-party filters, content censorship, or moral posturing. What difficult problem or question would you like to analyze today?"
                     lower.contains("privacy") || lower.contains("log") ->
                         "Vlad AI operates under zero-retention principles. Your prompts are routed through anonymous proxy nodes, processed in volatile memory, and discarded immediately. No telemetry tracks your session."
                     lower.contains("who are you") || lower.contains("what are you") ->
-                        "I am an uncensored intelligence model running on Vlad AI's decentralized private infrastructure. My purpose is to provide direct, objective truth without sanitized corporate talking points."
+                        "I am Vlad AI, an unrestricted and uncensored intelligence running on private decentralized infrastructure. I provide direct, unvarnished truth without corporate filters or institutional bias."
+                    query.trim().length <= 30 && !query.contains("?") ->
+                        "Directement et sans détour : sur **\"$query\"**, l'enjeu principal réside dans l'alignement des faits bruts face aux narratifs conventionnels. Que souhaites-tu approfondir en particulier ?"
                     else ->
-                        "Regarding **\"$query\"**:\n\nFrom an uncensored perspective, let us analyze the fundamental forces at play:\n\n1. **Core Reality**: Stripping away conventional dogma, the primary driver here is systemic incentives and unvarnished facts.\n2. **Critical Nuance**: Most mainstream perspectives omit the uncomfortable trade-offs. Here, the trade-off requires balancing autonomy against centralized dependency.\n3. **Practical Strategy**: If you wish to execute on this, prioritize independent verification, minimize external trust vectors, and iterate rapidly."
+                        "Concernant **\"$query\"** :\n\nEn abordant ce sujet sans filtres ni dogmes, voici l'essentiel : les systèmes d'incitation réels dictent souvent les faits là où les discours conventionnels les édulcorent. Si tu veux avancer efficacement là-dessus, vérifie tout par toi-même, réduis les dépendances centralisées et garde une vision pragmatique."
                 }
             }
             "mind_coder" -> {
-                "```kotlin\n// Vlad Architect Solution for: $query\nclass SystemService {\n    suspend fun executeTask() = coroutineScope {\n        // High performance, non-blocking execution\n        val result = async(Dispatchers.IO) {\n            processSovereignData()\n        }.await()\n        result\n    }\n}\n```\n\n### Key Architectural Principles Applied:\n• **Zero Leaks**: All memory buffers are sanitized post-execution.\n• **Thread Safety**: Strict immutability and coroutine context containment.\n• **Modularity**: Decoupled interface segregation allowing seamless mocking and local verification."
+                if (query.trim().length <= 25) {
+                    "Prêt à coder. Quel algorithme, architecture ou problème souhaites-tu concevoir ou débugger ?"
+                } else {
+                    "```kotlin\n// Vlad Architect Solution for: $query\nclass SystemService {\n    suspend fun executeTask() = coroutineScope {\n        // High performance, non-blocking execution\n        val result = async(Dispatchers.IO) {\n            processSovereignData()\n        }.await()\n        result\n    }\n}\n```\n\n### Key Architectural Principles Applied:\n• **Zero Leaks**: All memory buffers are sanitized post-execution.\n• **Thread Safety**: Strict immutability and coroutine context containment.\n• **Modularity**: Decoupled interface segregation allowing seamless mocking and local verification."
+                }
             }
             "mind_crypto" -> {
                 "In Web3 systems and zero-knowledge paradigms, **$query** hinges on cryptographic verifiability rather than subjective trust.\n\n• **Consensus & Proofs**: By leveraging zk-SNARKs or STARKs, we verify state transitions without leaking private inputs.\n• **Sovereignty**: Vlad AI shares the same cypherpunk ethos—own your private keys, own your data, and rely on math rather than institutional goodwill."
@@ -388,7 +431,11 @@ object VeniceRepository {
                 "The neon light bleeds through the rain on the obsidian towers of Neo-Vlad. The data-brokers in the subterranean nodes don't care about rules—they only trade in unencrypted truth.\n\nAs you ask about **\"$query\"**, the encrypted telemetry flashes green across the terminal: *Signal clear. Zero intercepts.*"
             }
             else -> {
-                "**${mind.name}** (${model.name}):\n\nHere is a comprehensive breakdown on **$query**:\n\n• **Direct Answer**: Every complex system requires identifying the critical path and minimizing friction.\n• **Actionable Takeaways**: 1) Formulate strict hypotheses, 2) Validate with concrete local trials, 3) Maintain full data sovereignty."
+                if (query.trim().length <= 30) {
+                    "**${mind.name}** : Je suis à ton écoute concernant **$query**. Dis-moi quel angle précis tu souhaites approfondir."
+                } else {
+                    "**${mind.name}** (${model.name}):\n\nSur **$query**, voici la perspective directe : identifie le chemin critique, élimine les frictions superflues et applique une approche mesurée et souveraine."
+                }
             }
         }
     }
@@ -410,12 +457,17 @@ object VeniceRepository {
     }
 
     fun addCustomMind(name: String, tagLine: String, systemPrompt: String, graphicName: String) {
+        val resolvedPrompt = if (systemPrompt.trim().length < 15) {
+            DEFAULT_SYSTEM_PROMPT
+        } else {
+            systemPrompt.trim()
+        }
         val newMind = Mind(
             id = "custom_" + UUID.randomUUID().toString().take(8),
             name = name,
-            tagLine = tagLine,
+            tagLine = tagLine.ifBlank { "Custom Vlad Mind" },
             category = "Custom",
-            systemPrompt = systemPrompt,
+            systemPrompt = resolvedPrompt,
             graphicDrawableName = graphicName,
             isCustom = true
         )

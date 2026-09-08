@@ -42,7 +42,16 @@ class VeniceViewModel : ViewModel() {
     private val _selectedMind = MutableStateFlow(repository.minds.value.first())
     val selectedMind: StateFlow<Mind> = _selectedMind.asStateFlow()
 
-    private val _selectedPreset = MutableStateFlow(imagePresets.first())
+    private val _selectedPreset = MutableStateFlow(
+        imagePresets.firstOrNull() ?: ImageStylePreset(
+            id = "preset_default",
+            name = "Studio",
+            description = "High quality generative synthesis",
+            promptSuffix = ", ultra high detail, 8k",
+            negativePrompt = "blurry, low quality",
+            drawableName = "vlad_ai_logo"
+        )
+    )
     val selectedPreset: StateFlow<ImageStylePreset> = _selectedPreset.asStateFlow()
 
     private val _isGeneratingResponse = MutableStateFlow(false)
@@ -59,7 +68,7 @@ class VeniceViewModel : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectTab(tab: String) {
-        _currentTab.value = tab
+        _currentTab.value = if (tab == "images") "studio" else tab
     }
 
     fun selectSession(sessionId: String) {

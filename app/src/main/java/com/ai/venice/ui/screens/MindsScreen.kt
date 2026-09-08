@@ -185,8 +185,8 @@ fun MindsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = drawableId),
+                        SafeMindImage(
+                            drawableId = drawableId,
                             contentDescription = mind.name,
                             modifier = Modifier
                                 .size(56.dp)
@@ -320,8 +320,8 @@ fun MindsScreen(
                             val resId = ResourceUtils.getDrawableIdByName(context, graphicName)
                             val isSelected = selectedGraphicIndex == idx
 
-                            Image(
-                                painter = painterResource(id = resId),
+                            SafeMindImage(
+                                drawableId = resId,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(44.dp)
@@ -392,7 +392,17 @@ fun MindsScreen(
                         onClick = {
                             if (newName.isNotBlank()) {
                                 val graphicName = "assets_images_minds_mindsemptystategraphic_0$selectedGraphicIndex"
-                                onCreateCustomMind(newName, newTagline.ifBlank { "Custom Venice Persona" }, newPrompt.ifBlank { "You are a specialized Venice AI persona." }, graphicName)
+                                val promptToUse = if (newPrompt.trim().length < 15) {
+                                    com.ai.venice.data.VeniceRepository.DEFAULT_SYSTEM_PROMPT
+                                } else {
+                                    newPrompt.trim()
+                                }
+                                onCreateCustomMind(
+                                    newName,
+                                    newTagline.ifBlank { "Custom Vlad Mind" },
+                                    promptToUse,
+                                    graphicName
+                                )
                                 showCreateDialog = false
                             }
                         },
@@ -407,6 +417,35 @@ fun MindsScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SafeMindImage(
+    drawableId: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    if (drawableId != 0) {
+        Image(
+            painter = painterResource(id = drawableId),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Box(
+            modifier = modifier.background(VeniceSurfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Psychology,
+                contentDescription = null,
+                tint = VeniceCyan,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

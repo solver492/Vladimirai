@@ -129,7 +129,6 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(VeniceVoid)
-            .imePadding()
     ) {
         // Model and Mind Control Strip
         Row(
@@ -520,8 +519,8 @@ fun ChatScreen(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = drawableId),
+                        SafeChatImage(
+                            drawableId = drawableId,
                             contentDescription = mind.name,
                             modifier = Modifier
                                 .size(36.dp)
@@ -604,8 +603,8 @@ fun ChatEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Image(
-            painter = painterResource(id = graphicId),
+        SafeChatImage(
+            drawableId = graphicId,
             contentDescription = mind.name,
             modifier = Modifier
                 .size(72.dp)
@@ -857,5 +856,34 @@ fun GeneratingIndicator(modelName: String) {
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.alpha(alpha)
         )
+    }
+}
+
+@Composable
+fun SafeChatImage(
+    drawableId: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    if (drawableId != 0) {
+        Image(
+            painter = painterResource(id = drawableId),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Box(
+            modifier = modifier.background(VeniceSurfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = VeniceCyan,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }

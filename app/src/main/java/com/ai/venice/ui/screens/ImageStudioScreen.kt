@@ -116,7 +116,7 @@ fun ImageStudioScreen(
         item {
             Column {
                 Text(
-                    text = "VENICE ART STUDIO",
+                    text = "VLAD ART STUDIO",
                     color = VeniceCyan,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -280,8 +280,8 @@ fun ImageStudioScreen(
                                 .padding(6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Image(
-                                painter = painterResource(id = drawableId),
+                            SafeStudioImage(
+                                drawableId = drawableId,
                                 contentDescription = preset.name,
                                 modifier = Modifier
                                     .size(78.dp)
@@ -373,7 +373,7 @@ fun ImageStudioScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Synthesizing with Venice Engine...",
+                        text = "Synthesizing with Vlad Engine...",
                         color = VeniceVoid,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -439,8 +439,8 @@ fun ImageStudioScreen(
                             .clickable { previewArt = art }
                             .padding(8.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = drawableId),
+                        SafeStudioImage(
+                            drawableId = drawableId,
                             contentDescription = art.prompt,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -527,8 +527,8 @@ fun ImageStudioScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Image(
-                        painter = painterResource(id = drawableId),
+                    SafeStudioImage(
+                        drawableId = drawableId,
                         contentDescription = art.prompt,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -592,6 +592,35 @@ fun ImageStudioScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SafeStudioImage(
+    drawableId: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    if (drawableId != 0) {
+        Image(
+            painter = painterResource(id = drawableId),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Box(
+            modifier = modifier.background(VeniceSurfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = null,
+                tint = VeniceCyan,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

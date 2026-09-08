@@ -49,6 +49,7 @@ fun VeniceApp(
                 onTabSelected = { viewModel.selectTab(it) }
             )
         },
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         containerColor = VeniceVoid
     ) { paddingValues ->
         Box(
@@ -70,7 +71,7 @@ fun VeniceApp(
                     onSendMessage = { viewModel.sendMessage(it) },
                     onNavigateToMinds = { viewModel.selectTab("minds") }
                 )
-                "images" -> ImageStudioScreen(
+                "images", "studio" -> ImageStudioScreen(
                     presets = viewModel.imagePresets,
                     selectedPreset = selectedPreset,
                     generatedArts = generatedArts,
@@ -103,6 +104,18 @@ fun VeniceApp(
                     allModels = viewModel.models,
                     onUpdateSettings = { viewModel.updateSettings(it) },
                     onToggleWallet = { viewModel.toggleWallet() }
+                )
+                else -> ChatScreen(
+                    messages = messages,
+                    selectedModel = selectedModel,
+                    selectedMind = selectedMind,
+                    allModels = viewModel.models,
+                    allMinds = minds,
+                    isGenerating = isGeneratingResponse,
+                    onModelSelected = { viewModel.setModel(it) },
+                    onMindSelected = { viewModel.setMind(it) },
+                    onSendMessage = { viewModel.sendMessage(it) },
+                    onNavigateToMinds = { viewModel.selectTab("minds") }
                 )
             }
         }
