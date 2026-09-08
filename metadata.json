@@ -1,0 +1,6 @@
+{
+  "name": "Vlad ai",
+  "description": "Private, uncensored AI chat, specialized character minds, and generative AI art studio powered by Vlad AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
