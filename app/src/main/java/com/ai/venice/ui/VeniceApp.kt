@@ -52,6 +52,7 @@ fun VeniceApp(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         containerColor = VeniceVoid
     ) { paddingValues ->
+        val context = androidx.compose.ui.platform.LocalContext.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -68,7 +69,7 @@ fun VeniceApp(
                     isGenerating = isGeneratingResponse,
                     onModelSelected = { viewModel.setModel(it) },
                     onMindSelected = { viewModel.setMind(it) },
-                    onSendMessage = { viewModel.sendMessage(it) },
+                    onSendMessage = { text, imageUri -> viewModel.sendMessage(text, imageUri, context) },
                     onNavigateToMinds = { viewModel.selectTab("minds") }
                 )
                 "images", "studio" -> ImageStudioScreen(
@@ -105,18 +106,21 @@ fun VeniceApp(
                     onUpdateSettings = { viewModel.updateSettings(it) },
                     onToggleWallet = { viewModel.toggleWallet() }
                 )
-                else -> ChatScreen(
-                    messages = messages,
-                    selectedModel = selectedModel,
-                    selectedMind = selectedMind,
-                    allModels = viewModel.models,
-                    allMinds = minds,
-                    isGenerating = isGeneratingResponse,
-                    onModelSelected = { viewModel.setModel(it) },
-                    onMindSelected = { viewModel.setMind(it) },
-                    onSendMessage = { viewModel.sendMessage(it) },
-                    onNavigateToMinds = { viewModel.selectTab("minds") }
-                )
+                else -> {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    ChatScreen(
+                        messages = messages,
+                        selectedModel = selectedModel,
+                        selectedMind = selectedMind,
+                        allModels = viewModel.models,
+                        allMinds = minds,
+                        isGenerating = isGeneratingResponse,
+                        onModelSelected = { viewModel.setModel(it) },
+                        onMindSelected = { viewModel.setMind(it) },
+                        onSendMessage = { text, imageUri -> viewModel.sendMessage(text, imageUri, context) },
+                        onNavigateToMinds = { viewModel.selectTab("minds") }
+                    )
+                }
             }
         }
     }

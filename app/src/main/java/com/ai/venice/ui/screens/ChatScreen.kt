@@ -14,6 +14,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Shield
@@ -95,6 +98,12 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import com.ai.venice.model.ProductSample
+import com.ai.venice.util.ProductVisualEnhancer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,14 +116,25 @@ fun ChatScreen(
     isGenerating: Boolean,
     onModelSelected: (VeniceModel) -> Unit,
     onMindSelected: (Mind) -> Unit,
-    onSendMessage: (String) -> Unit,
+    onSendMessage: (String, String?) -> Unit,
     onNavigateToMinds: () -> Unit
 ) {
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+    var showDemoSheet by remember { mutableStateOf(false) }
     var showModelSheet by remember { mutableStateOf(false) }
     var showMindSheet by remember { mutableStateOf(false) }
     var webSearchEnabled by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                selectedImageUri = uri.toString()
+            }
+        }
+    )
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -213,7 +233,14 @@ fun ChatScreen(
                     mind = selectedMind,
                     model = selectedModel,
                     onPromptSuggestionClick = { prompt ->
-                        onSendMessage(prompt)
+                        onSendMessage(prompt, null)
+                    },
+                    onSelectDemo = { sample ->
+                        selectedImageUri = sample.rawDrawableName
+                        inputText = sample.userInstruction
+                    },
+                    onPickFromGallery = {
+                        photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     }
                 )
             } else {
@@ -230,7 +257,7 @@ fun ChatScreen(
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = ClipData.newPlainText("Vlad AI", message.content)
                                 clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Copié dans le presse-papiers", Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -251,6 +278,17 @@ fun ChatScreen(
                 .background(VeniceSurface)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
+            // Selected Product Preview Banner
+            if (selectedImageUri != null) {
+                ProductAttachmentPreview(
+                    imageUri = selectedImageUri!!,
+                    onRemove = { selectedImageUri = null },
+                    onPresetPromptClick = { presetPrompt ->
+                        inputText = presetPrompt
+                    }
+                )
+            }
+
             // Optional Web Search & Privacy Chip row
             Row(
                 modifier = Modifier
@@ -294,24 +332,45 @@ fun ChatScreen(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Ephemeral Memory",
+                        text = "Mémoire Éphémère",
                         color = TextMuted,
                         fontSize = 10.sp
                     )
                 }
             }
 
-            // Input Box + Send Action
+            // Input Box + Attachment & Send Action
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Attach Product Photo Button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(if (selectedImageUri != null) VeniceCyan.copy(alpha = 0.2f) else VeniceVoid)
+                        .border(1.dp, if (selectedImageUri != null) VeniceCyan else VeniceBorder, CircleShape)
+                        .clickable { showDemoSheet = true }
+                        .testTag("chat_attach_image_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddPhotoAlternate,
+                        contentDescription = "Attacher photo produit",
+                        tint = if (selectedImageUri != null) VeniceCyan else TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
                     placeholder = {
                         Text(
-                            text = "Ask ${selectedMind.name} anything privately...",
+                            text = if (selectedImageUri != null) "Instructions d'optimisation e-commerce..." else "Demandez à ${selectedMind.name}...",
                             color = TextMuted,
                             fontSize = 14.sp
                         )
@@ -334,7 +393,7 @@ fun ChatScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                val canSend = inputText.isNotBlank() && !isGenerating
+                val canSend = (inputText.isNotBlank() || selectedImageUri != null) && !isGenerating
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -348,8 +407,10 @@ fun ChatScreen(
                         )
                         .clickable(enabled = canSend) {
                             val text = inputText
+                            val img = selectedImageUri
                             inputText = ""
-                            onSendMessage(text)
+                            selectedImageUri = null
+                            onSendMessage(text, img)
                         }
                         .testTag("chat_send_button"),
                     contentAlignment = Alignment.Center
@@ -363,6 +424,20 @@ fun ChatScreen(
                 }
             }
         }
+    }
+
+    // Product Demo & Photo Selector Bottom Sheet
+    if (showDemoSheet) {
+        ProductDemoSelectorBottomSheet(
+            onSelectDemo = { sample ->
+                selectedImageUri = sample.rawDrawableName
+                inputText = sample.userInstruction
+            },
+            onPickFromGallery = {
+                photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onDismiss = { showDemoSheet = false }
+        )
     }
 
     // Model Selector Bottom Sheet
@@ -563,12 +638,20 @@ fun ChatScreen(
 fun ChatEmptyState(
     mind: Mind,
     model: VeniceModel,
-    onPromptSuggestionClick: (String) -> Unit
+    onPromptSuggestionClick: (String) -> Unit,
+    onSelectDemo: (ProductSample) -> Unit,
+    onPickFromGallery: () -> Unit
 ) {
     val context = LocalContext.current
     val graphicId = ResourceUtils.getDrawableIdByName(context, mind.graphicDrawableName)
+    val scrollState = rememberScrollState()
 
     val starterPrompts = when (mind.id) {
+        "mind_ecommerce" -> listOf(
+            "Nettoie le fond de ce produit, supprime les logos et place-le sur un podium studio blanc",
+            "Élimine les numéros de téléphone et le filigrane, applique un éclairage 5500K et une ombre douce",
+            "Crée un visuel e-commerce premium avec fond noir et reflets pour ce flacon"
+        )
         "mind_uncensored" -> listOf(
             "Give me an objective, uncensored analysis of open-source AI vs centralized labs",
             "What are the most overlooked privacy risks in modern smartphones?",
@@ -590,16 +673,17 @@ fun ChatEmptyState(
             "What is truth in an era of synthetic media?"
         )
         else -> listOf(
+            "Transforme ma photo de produit en visuel studio e-commerce sans logo ni parasite",
             "Write an atmospheric cyberpunk story set in Neo-Vlad",
-            "What makes Vlad AI's zero-logging architecture unique?",
-            "Draft a comprehensive research breakdown on decentralized compute"
+            "What makes Vlad AI's zero-logging architecture unique?"
         )
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
+            .verticalScroll(scrollState)
+            .padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -607,13 +691,13 @@ fun ChatEmptyState(
             drawableId = graphicId,
             contentDescription = mind.name,
             modifier = Modifier
-                .size(72.dp)
+                .size(68.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .border(1.dp, VeniceBorderLight, RoundedCornerShape(16.dp)),
             contentScale = ContentScale.Crop
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
             text = mind.name,
@@ -626,7 +710,7 @@ fun ChatEmptyState(
             text = mind.tagLine,
             color = TextSecondary,
             fontSize = 13.sp,
-            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+            modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
         )
 
         Box(
@@ -653,10 +737,16 @@ fun ChatEmptyState(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Dedicated E-Commerce Studio Banner
+        ProductEcommerceHeroBanner(
+            onSelectDemo = onSelectDemo,
+            onPickFromGallery = onPickFromGallery
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "PROMPT STARTERS",
+            text = "SUGGESTIONS DE PROMPTS",
             color = TextMuted,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
@@ -729,7 +819,7 @@ fun ChatMessageItem(
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.85f else 0.92f),
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.85f else 0.94f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
             if (!isUser && message.modelName.isNotEmpty()) {
@@ -752,39 +842,79 @@ fun ChatMessageItem(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = 16.dp,
-                            topEnd = 16.dp,
-                            bottomStart = if (isUser) 16.dp else 4.dp,
-                            bottomEnd = if (isUser) 4.dp else 16.dp
+            if (message.isProductTransformation) {
+                ProductTransformationShowcaseCard(
+                    message = message,
+                    onCopyReport = onCopyText
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 16.dp,
+                                topEnd = 16.dp,
+                                bottomStart = if (isUser) 16.dp else 4.dp,
+                                bottomEnd = if (isUser) 4.dp else 16.dp
+                            )
                         )
-                    )
-                    .background(
-                        if (isUser) VeniceSurfaceContainer
-                        else VeniceSurfaceVariant
-                    )
-                    .border(
-                        1.dp,
-                        if (isUser) VeniceBorderLight else VeniceBorder,
-                        RoundedCornerShape(
-                            topStart = 16.dp,
-                            topEnd = 16.dp,
-                            bottomStart = if (isUser) 16.dp else 4.dp,
-                            bottomEnd = if (isUser) 4.dp else 16.dp
+                        .background(
+                            if (isUser) VeniceSurfaceContainer
+                            else VeniceSurfaceVariant
                         )
-                    )
-                    .padding(14.dp)
-            ) {
-                SelectionContainer {
-                    Text(
-                        text = message.content,
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
-                    )
+                        .border(
+                            1.dp,
+                            if (isUser) VeniceBorderLight else VeniceBorder,
+                            RoundedCornerShape(
+                                topStart = 16.dp,
+                                topEnd = 16.dp,
+                                bottomStart = if (isUser) 16.dp else 4.dp,
+                                bottomEnd = if (isUser) 4.dp else 16.dp
+                            )
+                        )
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        if (isUser && message.originalImageUri != null) {
+                            Column(modifier = Modifier.padding(bottom = 10.dp)) {
+                                UniversalProductImage(
+                                    source = message.originalImageUri,
+                                    contentDescription = "Photo produit envoyée",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, VeniceBorderLight, RoundedCornerShape(10.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoCamera,
+                                        contentDescription = null,
+                                        tint = VeniceCyan,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Photo brute soumise pour studio e-commerce",
+                                        color = VeniceCyan,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+
+                        SelectionContainer {
+                            Text(
+                                text = message.content,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp
+                            )
+                        }
+                    }
                 }
             }
 

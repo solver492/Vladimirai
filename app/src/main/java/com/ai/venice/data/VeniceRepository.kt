@@ -63,6 +63,14 @@ object VeniceRepository {
 
     private val initialMinds = listOf(
         Mind(
+            id = "mind_ecommerce",
+            name = "Vlad E-Commerce Studio",
+            tagLine = "Transformation visuelle de produits & conversion studio",
+            category = "Featured",
+            systemPrompt = "You are Vlad E-Commerce Studio, an expert in commercial product photography, visual performance, and conversion rate optimization. You transform raw product imagery into high-conversion e-commerce visuals, systematically removing parasitic store logos, phone numbers, emails, and clutter while applying pristine studio backdrops and lighting.",
+            graphicDrawableName = "studio_perfume_sample"
+        ),
+        Mind(
             id = "mind_uncensored",
             name = "Vlad Uncensored",
             tagLine = "Unfiltered, radically candid truth-seeking",
@@ -310,56 +318,89 @@ object VeniceRepository {
         _messages.value = _messages.value - sessionId
     }
 
-    suspend fun sendMessage(chatId: String, userText: String): String {
+    suspend fun sendMessage(
+        chatId: String,
+        userText: String,
+        imageUri: String? = null,
+        context: android.content.Context? = null
+    ): String {
         val session = _sessions.value.find { it.id == chatId }
         val mind = _minds.value.find { it.id == session?.mindId } ?: _minds.value.first()
         val model = availableModels.find { it.id == session?.modelId } ?: availableModels.first()
+
+        val effectiveUserText = if (userText.isBlank() && imageUri != null) {
+            "Transforme cette image de produit en visuel e-commerce studio haute conversion."
+        } else {
+            userText
+        }
 
         val userMsg = ChatMessage(
             id = UUID.randomUUID().toString(),
             chatId = chatId,
             role = "user",
-            content = userText
+            content = effectiveUserText,
+            originalImageUri = imageUri
         )
         val currentList = _messages.value[chatId] ?: emptyList()
         _messages.value = _messages.value + (chatId to (currentList + userMsg))
 
         // Update session title if first message
+        val prefix = if (imageUri != null) "Studio : " else ""
         if (currentList.isEmpty() || session?.title == "New Conversation") {
-            val autoTitle = if (userText.length > 28) userText.take(28) + "..." else userText
+            val autoTitle = prefix + (if (effectiveUserText.length > 24) effectiveUserText.take(24) + "..." else effectiveUserText)
             _sessions.value = _sessions.value.map {
-                if (it.id == chatId) it.copy(title = autoTitle, lastMessage = userText, updatedAt = System.currentTimeMillis())
+                if (it.id == chatId) it.copy(title = autoTitle, lastMessage = effectiveUserText, updatedAt = System.currentTimeMillis())
                 else it
             }
         } else {
             _sessions.value = _sessions.value.map {
-                if (it.id == chatId) it.copy(lastMessage = userText, updatedAt = System.currentTimeMillis())
+                if (it.id == chatId) it.copy(lastMessage = effectiveUserText, updatedAt = System.currentTimeMillis())
                 else it
             }
         }
 
-        // Simulate intelligent streaming response tailored to the Mind & Model
-        delay(600)
-        val aiReplyContent = generateVeniceResponse(userText, mind, model)
+        // Simulate intelligent streaming response tailored to the Mind, Model, and Product Image
+        delay(700)
 
-        val aiMsg = ChatMessage(
-            id = UUID.randomUUID().toString(),
-            chatId = chatId,
-            role = "assistant",
-            content = aiReplyContent,
-            modelName = model.name,
-            mindName = mind.name
-        )
+        val aiMsg = if (imageUri != null && context != null) {
+            val transformationResult = com.ai.venice.util.ProductVisualEnhancer.transformProductImage(
+                context = context,
+                rawImageSource = imageUri,
+                userInstruction = effectiveUserText
+            )
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                chatId = chatId,
+                role = "assistant",
+                content = transformationResult.reportText,
+                modelName = model.name,
+                mindName = "Vlad E-Commerce Studio",
+                originalImageUri = imageUri,
+                processedImageUri = transformationResult.outputUri,
+                isProductTransformation = true,
+                transformationDetails = transformationResult.details
+            )
+        } else {
+            val aiReplyContent = generateVeniceResponse(effectiveUserText, mind, model)
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                chatId = chatId,
+                role = "assistant",
+                content = aiReplyContent,
+                modelName = model.name,
+                mindName = mind.name
+            )
+        }
 
         val updatedList = (_messages.value[chatId] ?: emptyList()) + aiMsg
         _messages.value = _messages.value + (chatId to updatedList)
 
         _sessions.value = _sessions.value.map {
-            if (it.id == chatId) it.copy(lastMessage = aiReplyContent.take(40) + "...", updatedAt = System.currentTimeMillis())
+            if (it.id == chatId) it.copy(lastMessage = aiMsg.content.take(40) + "...", updatedAt = System.currentTimeMillis())
             else it
         }
 
-        return aiReplyContent
+        return aiMsg.content
     }
 
     private fun isBriefGreetingOrSmallTalk(query: String): Boolean {

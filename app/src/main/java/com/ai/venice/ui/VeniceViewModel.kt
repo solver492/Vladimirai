@@ -117,14 +117,19 @@ class VeniceViewModel : ViewModel() {
         _selectedPreset.value = preset
     }
 
-    fun sendMessage(text: String) {
-        if (text.isBlank() || _isGeneratingResponse.value) return
+    fun sendMessage(text: String, imageUri: String? = null, context: android.content.Context? = null) {
+        if ((text.isBlank() && imageUri == null) || _isGeneratingResponse.value) return
         val currentChatId = _activeSessionId.value
 
         viewModelScope.launch {
             _isGeneratingResponse.value = true
             try {
-                repository.sendMessage(currentChatId, text.trim())
+                repository.sendMessage(
+                    chatId = currentChatId,
+                    userText = text.trim(),
+                    imageUri = imageUri,
+                    context = context
+                )
             } finally {
                 _isGeneratingResponse.value = false
             }

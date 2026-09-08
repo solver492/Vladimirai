@@ -20,6 +20,26 @@ data class Mind(
     val recommendedModelId: String = "llama-3.3-70b-uncensored"
 )
 
+data class ProductTransformationDetails(
+    val productName: String,
+    val backgroundStyle: String,
+    val lightingSetup: String,
+    val removedElements: List<String>,
+    val conversionScore: Int = 98,
+    val studioAdjustments: List<String>,
+    val salesChannels: List<String> = listOf("E-Commerce (Amazon/Shopify)", "Réseaux Sociaux (Instagram/TikTok)", "Bannières Promo (16:9)")
+)
+
+data class ProductSample(
+    val id: String,
+    val title: String,
+    val category: String,
+    val userInstruction: String,
+    val rawDrawableName: String,
+    val studioDrawableName: String,
+    val parasiticElements: List<String>
+)
+
 data class ChatMessage(
     val id: String,
     val chatId: String,
@@ -27,7 +47,11 @@ data class ChatMessage(
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
     val modelName: String = "",
-    val mindName: String = ""
+    val mindName: String = "",
+    val originalImageUri: String? = null,
+    val processedImageUri: String? = null,
+    val isProductTransformation: Boolean = false,
+    val transformationDetails: ProductTransformationDetails? = null
 )
 
 data class ChatSession(
